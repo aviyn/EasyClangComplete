@@ -6,6 +6,8 @@ Attributes:
 import logging
 from os import path
 
+import sublime
+
 from .completion.compiler_variant import LibClangCompilerVariant
 
 log = logging.getLogger(__name__)
@@ -18,7 +20,8 @@ class CompileErrors:
         err_regions (dict): dictionary of error regions for view ids
     """
 
-    _TAG = "easy_clang_complete_errors"
+    _TAGE = "err_easy_clang_complete"
+    _TAGW = "war_easy_clang_complete"
     _MAX_POPUP_WIDTH = 1800
 
     err_regions = {}
@@ -93,9 +96,16 @@ html {{
             # view has no errors for it
             return
         current_error_dict = self.err_regions[view.buffer_id()]
-        regions = CompileErrors._as_region_list(current_error_dict)
+        regions = CompileErrors._as_region_list(current_error_dict, 2)
+        log.debug(" showing warning regions: %s", regions)
+        view.add_regions(CompileErrors._TAGW, regions,
+                         "sublimelinter.mark.warning",
+                         "Packages/EasyClangComplete/marks/warning.png", sublime.DRAW_NO_FILL)
+        regions = CompileErrors._as_region_list(current_error_dict, 3)
         log.debug(" showing error regions: %s", regions)
-        view.add_regions(CompileErrors._TAG, regions, "code")
+        view.add_regions(CompileErrors._TAGE, regions,
+                         "sublimelinter.mark.error",
+                         "Packages/EasyClangComplete/marks/error.png", sublime.DRAW_NO_FILL)
 
     def erase_regions(self, view):
         """Erase error regions for view.
@@ -107,7 +117,8 @@ html {{
             # view has no errors for it
             return
         log.debug(" erasing error regions for view %s", view.buffer_id())
-        view.erase_regions(CompileErrors._TAG)
+        view.erase_regions(CompileErrors._TAGE)
+        view.erase_regions(CompileErrors._TAGW)
 
     def show_popup_if_needed(self, view, row):
         """Show a popup if it is needed in this row.
@@ -184,7 +195,7 @@ html {{
         return errors_html
 
     @staticmethod
-    def _as_region_list(err_regions_dict):
+    def _as_region_list(err_regions_dict, level):
         """Make a list from error region dict.
 
         Args:
@@ -196,5 +207,7 @@ html {{
         region_list = []
         for errors_list in err_regions_dict.values():
             for error in errors_list:
-                region_list.append(error['region'])
+                if error['severity'] == level:
+                    log.info(error['severity'])
+                    region_list.append(error['region'])
         return region_list
